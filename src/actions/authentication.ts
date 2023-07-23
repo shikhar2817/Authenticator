@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
-import { pool } from "../db";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import { pool } from "../db";
 import { User } from "../types";
 import { jwtGenerator, sendDiscordNotification } from "../utils";
 
@@ -86,6 +87,7 @@ export const Login = async (req: Request, res: Response) => {
 
     if (queryRes.rowCount === 0) {
       // if user doesn't exist
+      console.log("User not found: ", email);
       return res.status(401).json({
         message: "No user with this email. Kindly Sign up if not done already.",
       });
@@ -97,24 +99,57 @@ export const Login = async (req: Request, res: Response) => {
     const validPassword = await bcrypt.compare(password, userData.password);
 
     // if password not matched
-    if (!validPassword)
+    if (!validPassword) {
+      console.log("Incorrect password attempt: ", userData.email);
       return res.status(401).json({ message: "Password is incorrect" });
+    }
 
     // generate jwt token
-    const token = jwtGenerator(userData.user_id);
+    const jwtToken = jwtGenerator(userData.user_id);
 
     return res.status(200).json({
       id: userData.user_id,
       email: userData.email,
       username: userData.username,
       message: `Welcome ${userData.username}`,
-      authToken: token,
+      authToken: jwtToken,
     });
   } catch (error) {
     console.error("Logging Error", error);
     return res.status(400).json({
       message:
         "Error Logging the User, If error persist please contact to support@rocketbrains.in",
+    });
+  }
+};
+
+export const verifyAuthToken = (req: Request, res: Response) => {
+  try {
+    const jwtToken = req.header("authToken");
+
+    // if token doesn't exist
+    if (!jwtToken)
+      return res.status(403).json({ message: "User is Unauthorize" });
+
+    jwt.verify(
+      jwtToken,
+      process.env.JWT_SECRET_KEY as string,
+      (error, verifiedToken) => {
+        if (error) {
+          return res
+            .status(400)
+            .json({ message: "invalid auth token", error: error });
+        } else {
+          res.status(200).json({ message: "valid token" });
+        }
+      }
+    );
+
+    return res.status(400).json({ message: "invalid auth token" });
+  } catch (error) {
+    console.log("Auth Token Verification Error", error);
+    return res.status(400).json({
+      message: "Error while verifying Auth Token",
     });
   }
 };
