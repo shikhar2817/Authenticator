@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import jwt, { VerifyErrors } from "jsonwebtoken";
 import { pool } from "../db";
 import { User, UserResponse } from "../types";
 import { jwtGenerator, sendDiscordNotification } from "../utils";
@@ -125,25 +125,25 @@ export const Login = async (req: Request, res: Response) => {
   }
 };
 
-export const verifyAuthToken = (req: Request, res: Response) => {
+export const verifyAuthToken = async (req: Request, res: Response) => {
   try {
-    const jwtToken = req.header("authToken");
+    const { authToken } = req.body;
 
     // if token doesn't exist
-    if (!jwtToken)
+    if (!authToken)
       return res.status(403).json({ message: "User is Unauthorize" });
 
-    jwt.verify(jwtToken, process.env.JWT_SECRET_KEY as string, (error) => {
-      if (error) {
-        return res
-          .status(400)
-          .json({ message: "invalid auth token", error: error });
-      } else {
-        res.status(200).json({ message: "valid token" });
+    jwt.verify(
+      authToken,
+      process.env.JWT_SECRET_KEY as string,
+      (error: VerifyErrors | null) => {
+        if (error)
+          return res
+            .status(400)
+            .json({ message: "invalid auth token", error: error });
+        else return res.status(200).json({ message: "valid token" });
       }
-    });
-
-    return res.status(400).json({ message: "invalid auth token" });
+    );
   } catch (error) {
     console.log("Auth Token Verification Error", error);
     return res.status(400).json({
