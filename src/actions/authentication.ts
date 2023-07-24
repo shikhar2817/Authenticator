@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import jwt, { VerifyErrors } from "jsonwebtoken";
 import { pool } from "../db";
-import { User } from "../types";
+import { User, UserResponse } from "../types";
 import { jwtGenerator, sendDiscordNotification } from "../utils";
 
 export const SignUp = async (req: Request, res: Response) => {
@@ -51,14 +51,15 @@ export const SignUp = async (req: Request, res: Response) => {
 
     // generating jwt token
     const token = jwtGenerator(newUser.user_id);
-
-    return res.status(200).json({
-      id: newUser.user_id,
+    const userData: UserResponse = {
+      user_id: newUser.user_id,
       email: newUser.email,
       username: newUser.username,
-      message: "Registration Successfull",
+      message: `Registration Successfull, Welcome ${newUser.username}`,
       authToken: token,
-    });
+    };
+
+    return res.status(200).json(userData);
   } catch (error) {
     console.error("Registration Error", error);
     return res.status(400).json({
@@ -76,8 +77,7 @@ export const Login = async (req: Request, res: Response) => {
     if (!email || !password) {
       console.log("Missing Parameter: ", email, password);
       return res.status(400).json({
-        message:
-          "Missing Parameters, it can be email, password, firstname or lastname",
+        message: "Missing Parameters, it can be email, password",
       });
     }
 
@@ -107,13 +107,15 @@ export const Login = async (req: Request, res: Response) => {
     // generate jwt token
     const jwtToken = jwtGenerator(userData.user_id);
 
-    return res.status(200).json({
-      id: userData.user_id,
+    const userRes: UserResponse = {
+      user_id: userData.user_id,
       email: userData.email,
       username: userData.username,
       message: `Welcome ${userData.username}`,
       authToken: jwtToken,
-    });
+    };
+
+    return res.status(200).json(userRes);
   } catch (error) {
     console.error("Logging Error", error);
     return res.status(400).json({
@@ -123,29 +125,25 @@ export const Login = async (req: Request, res: Response) => {
   }
 };
 
-export const verifyAuthToken = (req: Request, res: Response) => {
+export const verifyAuthToken = async (req: Request, res: Response) => {
   try {
-    const jwtToken = req.header("authToken");
+    const { authToken } = req.body;
 
     // if token doesn't exist
-    if (!jwtToken)
+    if (!authToken)
       return res.status(403).json({ message: "User is Unauthorize" });
 
     jwt.verify(
-      jwtToken,
+      authToken,
       process.env.JWT_SECRET_KEY as string,
-      (error, verifiedToken) => {
-        if (error) {
+      (error: VerifyErrors | null) => {
+        if (error)
           return res
             .status(400)
             .json({ message: "invalid auth token", error: error });
-        } else {
-          res.status(200).json({ message: "valid token" });
-        }
+        else return res.status(200).json({ message: "valid token" });
       }
     );
-
-    return res.status(400).json({ message: "invalid auth token" });
   } catch (error) {
     console.log("Auth Token Verification Error", error);
     return res.status(400).json({
