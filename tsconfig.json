@@ -4,11 +4,16 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "baseUrl": "src",
-    "outDir": "dist",
     "sourceMap": true,
     "noImplicitAny": true,
     "esModuleInterop": true,
-    "strict": true
+    "strict": true,
+    "target": "es5",
+    "lib": ["es6"],
+    "allowJs": true,
+    "outDir": "build",
+    "rootDir": "src",
+    "resolveJsonModule": true
   },
-  "include": ["./**/*", "index.ts"]
+  "include": ["./**/*"]
 }
